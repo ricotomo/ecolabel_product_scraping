@@ -1,3 +1,4 @@
+from msilib.schema import Error
 from lxml import html
 import time
 import os
@@ -23,8 +24,8 @@ options.add_argument('--headless')
 
 ##Chrome
 from webdriver_manager.chrome import ChromeDriverManager
-driver2 = webdriver.Chrome(ChromeDriverManager().install())
-#driver = webdriver.Chrome(ChromeDriverManager().install(), chrome_options=options)
+#driver = webdriver.Chrome(ChromeDriverManager().install())
+driver = webdriver.Chrome(ChromeDriverManager().install(), chrome_options=options)
 
 
 
@@ -37,21 +38,20 @@ label=None
 def getWebsite(label=label):
     driver1=None
     if label == "NS":
-        #driver1=driver.get("https://www.svanen.se/en/categories/electronics/")
-        driver2.get("https://www.svanen.se/en/categories/electronics/")
+        driver.get("https://www.svanen.se/en/categories/electronics/")
     elif label == "BA":
-        driver1=driver.get("https://www.blauer-engel.de/en/products")
+        driver.get("https://www.blauer-engel.de/en/products")
     else:
         #print("entered else in getWebsite")
-        driver1=None
-    return driver1
+        return Error
+    return "Success"
 
 #get the categories of electronics
 
 def getCategories(label=label):
     categories_list = []
     if label == "NS":
-        categories = driver2.find_elements_by_class_name("category")
+        categories = driver.find_elements_by_class_name("category")
     elif label =="BA":
         driver.find_elements_by_xpath("//*[text()='Product categories']").click()
         categories = driver.find_elements_by_class_name("m-bep_categories__listitemtext")
@@ -65,7 +65,7 @@ def getCategoryPages(categories, label=label):
     category_pages_list = []
     if label == "NS":
         for category in categories:
-                elements = driver2.find_elements_by_link_text(category)
+                elements = driver.find_elements_by_link_text(category)
                 for element in elements:
                     category_pages_list.append([category, element.get_attribute('href')])
     return category_pages_list
@@ -73,9 +73,9 @@ def getCategoryPages(categories, label=label):
 def getProductPages(categoryPages, label=label):
     product_pages_list=[]
     for page in categoryPages:
-        driver2.get(page[1])
+        driver.get(page[1])
         if label == "NS":
-            elements = driver2.find_elements_by_xpath("//a[@class='d-flex flex-column flex-wrap align-items-center-x col-8 col-lg-9 px-3']")
+            elements = driver.find_elements_by_xpath("//a[@class='d-flex flex-column flex-wrap align-items-center-x col-8 col-lg-9 px-3']")
             #print(elements)
         else:
             elements = None
@@ -86,9 +86,9 @@ def getProductPages(categoryPages, label=label):
 def getProductDetails(productPages, label=label):
     product_details_list=[]
     for page in productPages:
-        driver2.get(page[1])
+        driver.get(page[1])
         if label == "NS":
-            name = driver2.find_element_by_xpath("//h1[@class='d-flex justify-content-between mt-7']").text
+            name = driver.find_element_by_xpath("//h1[@class='d-flex justify-content-between mt-7']").text
             category = page[0]
             product_details_list.append([category, name])
 
@@ -97,7 +97,7 @@ def getProductDetails(productPages, label=label):
 
 ##Nordic Swan
 label="NS"
-driver=getWebsite(label)
+getWebsite(label)
 NS_Categories=getCategories(label)
 #print(NS_Categories)
 NS_Category_Pages = getCategoryPages(NS_Categories, label)
@@ -118,8 +118,8 @@ df.to_csv("C:/Users/morit/Documents/School/MSc - Fintech Thesis/Code/product_dat
 
 ##Blue Angel
 # label ="BA"
-# driver=getWebsite(label)
-# BA_Categories=getCategories(driver,label)
+#getWebsite(label)
+# BA_Categories=getCategories(label)
 # print(BA_Categories)
 
 
@@ -127,4 +127,4 @@ df.to_csv("C:/Users/morit/Documents/School/MSc - Fintech Thesis/Code/product_dat
 #time.sleep (3)
 
 
-driver2.close()
+driver.close()
