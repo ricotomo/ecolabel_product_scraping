@@ -13,6 +13,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
 
 
 import pandas as pd
@@ -36,7 +37,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 driver = webdriver.Chrome(ChromeDriverManager().install())
 #driver = webdriver.Chrome(ChromeDriverManager().install(), chrome_options=options)
 
-#set label
+#initialize label
 label=None
 
 
@@ -57,8 +58,10 @@ def getWebsite(label=label):
             WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH,'//*[@id="CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll"]'))).click()
         except:
             logging.warning("Exception while trying to close the cookies dialogue")
+    elif label == "TCO":
+        driver.get("https://tcocertified.com/product-finder/")
     else:
-        #print("entered else in getWebsite")
+        logging.error("The label name was not recognized or the website couldnt be retrieved via the getWebsite method")
         return Error
     return "Success"
 
@@ -77,6 +80,8 @@ def getCategories(label=label):
         driver.find_elements_by_xpath("//*[text()='Product categories']")[0].click()
         driver.find_elements_by_xpath("//*[text()='Green-IT / Household Appliances']")[0].click()
         categories = driver.find_elements_by_class_name("m-bep_categories__childlink")
+    elif label == "TCO":
+        categories = driver.find_elements_by_xpath("//div[@class='col-4 col-md-3 mb-4 mb-md-0 p-md-4 category text-uppercase text-center']/a")
     else:
         return None    
     for category in categories:
@@ -105,10 +110,40 @@ def getProductPages(categoryPages, label=label):
             #print(elements)
         elif label == "BA":
             elements = driver.find_elements_by_xpath("//a[@class='m-bep_raluz__productslink']")
+        elif label == "TCO":
+            product_table = driver.find_element_by_css_selector('table')
+            elements=[]
+            for row in product_table.find_elements_by_css_selector('tr'):
+                #scroll to row in table
+                actions = ActionChains(driver)
+                actions.move_to_element(row).perform()
+                try:
+                    row.click()
+                    print(driver.current_url)
+                    elements.append(driver.current_url)
+                    #close the product overlay so we can look for the next one
+                    driver.find_element_by_xpath("//div[@id='app']/div/div/div/div/div[2]/div/div/div[2]/div[5]").click()
+                except:
+                    #try to dismiss newletter signup popup with built in selenium class
+                    try:
+                        driver.find_element_by_xpath("//div[@class='leadinModal-content']//button[1]").click()
+                        logging.warning("Passed a row in the TCO crawler due to an exception.")
+                        print("Passed a row in the TCO crawler due to an exception.")
+                    except Exception as Argument:
+                        logging.exception()
+                        continue
+                        
+            
+                #driver.find_element_by_xpath('//*[contains(text(), "Close")]').click()
+                # for cell in row.find_elements_by_tag_name('td'):
+                #     print(cell.text)
         else:
             elements = None
         for element in elements:
-                product_pages_list.append([page[0],element.get_attribute('href')])
+                if label =="TCO":
+                    product_pages_list.append([page[0], element])
+                else:
+                    product_pages_list.append([page[0],element.get_attribute('href')])
     return product_pages_list
 
 def getProductDetails(productPages, label=label):
@@ -119,8 +154,12 @@ def getProductDetails(productPages, label=label):
             name = driver.find_element_by_xpath("//h1[@class='d-flex justify-content-between mt-7']").text
             category = page[0]
             product_details_list.append([category, name])
-        if label == "BA":
+        elif label == "BA":
             name = driver.find_element_by_xpath("//h1[@class='m-bep_productdetail__title']").text
+            category = page[0]
+            product_details_list.append([category, name])
+        elif label == "TCO":
+            name = driver.find_element_by_xpath("//table/tbody/tr[1]/td[2]").text + " " + driver.find_element_by_xpath("//table/tbody/tr[2]/td[2]").text
             category = page[0]
             product_details_list.append([category, name])
 
@@ -148,21 +187,42 @@ def getProductDetails(productPages, label=label):
 
 # df.to_csv(file_path+"/product_database.csv", index=False, encoding="utf-8")
 
-##Blue Angel
-label ="BA"
+# ##Blue Angel
+# label ="BA"
+# getWebsite(label)
+# BA_Categories=getCategories(label)
+# #print(BA_Categories)
+# BA_Category_Pages = getCategoryPages(BA_Categories, label)
+# #print(BA_Category_Pages)
+# BA_Product_Pages=getProductPages(BA_Category_Pages, label)
+# #print(BA_Product_Pages)
+# BA_Product_Details=getProductDetails(BA_Product_Pages, label)
+# #print(BA_Product_Details)
+
+# ##Write Blue Angel products to csv file
+# df = pd.DataFrame(BA_Product_Details)
+# df.columns = ['Category', 'Product']
+# df['Label'] = "Blue Angel"
+# df.to_csv(file_path+"/product_database.csv", mode='a', header= False, index=False, encoding="utf-8")
+
+##TCO Certified
+label ="TCO"
 getWebsite(label)
-BA_Categories=getCategories(label)
-print(BA_Categories)
-BA_Category_Pages = getCategoryPages(BA_Categories, label)
-print(BA_Category_Pages)
-BA_Product_Pages=getProductPages(BA_Category_Pages, label)
-print(BA_Product_Pages)
-BA_Product_Details=getProductDetails(BA_Product_Pages[0:2], label)
-print(BA_Product_Details)
+TCO_Categories=getCategories(label)
+print(TCO_Categories)
+TCO_Category_Pages = getCategoryPages(TCO_Categories, label)
+print(TCO_Category_Pages)
+TCO_Product_Pages=getProductPages(TCO_Category_Pages, label)
+print(TCO_Product_Pages)
+TCO_Product_Details=getProductDetails(TCO_Product_Pages, label)
+print(TCO_Product_Details)
+
+# ##Write TCO products to csv file
+df = pd.DataFrame(TCO_Product_Details)
+df.columns = ['Category', 'Product']
+df['Label'] = "TCO Certified"
+df.to_csv(file_path+"/product_database.csv", mode='a', header= False, index=False, encoding="utf-8")
 
 
-#set timer to 3 seconds in case there is a  delay in loading
-#time.sleep (3)
-
-
+print("finished executing")
 driver.close()
