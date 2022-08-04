@@ -277,5 +277,12 @@ print(EPEAT_Product_Pages)
 EPEAT_Product_Details=getProductDetails(EPEAT_Product_Pages, label)
 print(EPEAT_Product_Details)
 
+# # ##Write TCO products to csv file
+df = pd.DataFrame(EPEAT_Product_Details)
+df.columns = ['Category', 'Product']
+df['Label'] = "EPEAT"
+df.to_csv(file_path+"/product_database.csv", mode='a', header= False, index=False, encoding="utf-8")
+
+
 print("finished executing")
 driver.close()
