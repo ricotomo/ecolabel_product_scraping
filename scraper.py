@@ -36,14 +36,84 @@ options.add_argument('--headless')
 
 ##Chrome
 from webdriver_manager.chrome import ChromeDriverManager
-driver = webdriver.Chrome(ChromeDriverManager().install())
-#driver = webdriver.Chrome(ChromeDriverManager().install(), chrome_options=options)
+#driver = webdriver.Chrome(ChromeDriverManager().install())
+driver = webdriver.Chrome(ChromeDriverManager().install(), chrome_options=options)
 
 #initialize label
 label=None
 
+##Each ecolabel has their own name for categories of electronics. These should be standardized. The following changes need to be made.
+##Standardized categories: "Computers", "Mobile Phones, Smartphones", "Tablets", "Solar-Powered Products","Baby Monitors", 
+# "Digital Cordless Phone", "Water Boilers, Electric Kettles", "Power Strips, Socket Adapters", "Coffee Machines",
+# "Routers, Networking", "Toasters", "Data Shredders", "Hair Dryers", "Vacuum Cleaners", "Garden Tools", "Software Products",
+# "Printers, Multifunction Devices", "Telephone Systems", "Keyboards", "Displays", "Imaging Equiptment", "Photovoltaic Modules and Inverters",
+# "Servers", "Televisions", "Batteries", "Projectors", "Headsets", "Storage"
+
+
+def cleanCategories(df1=None):
+
+    if df1:
+        df=pd.DataFrame()
+        print("test")
+    else:
+        df = pd.read_csv(file_path+"/product_database.csv")
+        print("test2")
+
+    EPEAT_dict = {
+    "COMPUTERS & DISPLAYS" : "Computers", 
+    "IMAGING EQUIPTMENT" : "Imaging Equiptment", 
+    "MOBILE PHONES" : "Mobile Phones, Smartphones", 
+    "NETWORK EQUIPTMENT" : "Routers, Networking", 
+    "PHOTOVOLTAIC MODULES AND INVERTERS" : "Photovoltaic Modules and Inverters", 
+    "SERVERS" : "Servers", 
+    "TELEVISIONS" : "Televisions"}
+    
+    df.replace({"Category": EPEAT_dict})
+
+    TCO_dict ={
+    "DISPLAYS" : "Displays", 
+    "NOTEBOOKS" : "Computers", 
+    "TABLETS" : "Tablets", 
+    "SMARTPHONES" : "Mobile Phones, Smartphones", 
+    "HEADSETS" : "Headsets", 
+    "DESKTOPS" : "Computers", 
+    "ALL-IN-ONE-PCS" : "Computers",
+    "PROJECTORS" : "Projectors", 
+    "NETWORK EQUIPTMENT" : "Routers, Networking",
+    "DATA STORAGE" : "Storage", 
+    "SERVERS" : "Servers"}
+
+    df=df.replace({"Category": TCO_dict})
+
+    BA_dict ={
+    "Baby Phones" : "Baby Monitors", 
+    "Computers and Keyboards" : "Computers", 
+    "Digital cordless phone" : "Telephone Systems", 
+    "Garden tools" : "Garden Tools", 
+    "Mobile Phones (until 12/2022)" : "Mobile Phones, Smartphones", 
+    "Resources and Energy-Efficient Software Products" : "Software Products",
+    "Server and Data Storage Products" : "Storage",
+    "Solar-Powered Products (scales, calculators" : "Solar-Powered Products",  
+    "Water Boilers, Electric kettles" : "Water Boilers, Electric Kettles"}
+
+    df=df.replace({"Category": BA_dict})
+
+    NS_dict ={
+    "Copier" : "Printers, Multifunction Devices", 
+    "Multifunction printer" : "Printers, Multifunction Devices", 
+    "Primary batteries" : "Batteries", 
+    "Printer" : "Printers, Multifunction Devices", 
+    "Rechargeable battery" : "Batteries"    }
+    df=df.replace({"Category": NS_dict})
+
+    #remove categories not relevant to the analysis
+    df = df[df["Category"].str.contains("Cleaning of liquid damaged laptops|Cleaning of liquid damaged smartphones|Take Back Schemes for Mobile Phones|Data Centers|Climate-Friendly Co-Location Data Center") == False]
+
+    df.to_csv(file_path+"/product_database2.csv", header= True, index=False, encoding="utf-8")
+
 ##EPEAT special functions
 ## EPEAT offers a csv export function of the product catalogue. Because using this will be more robust than crawling all the data a script is setup to get and handle the exported file. 
+
 
 def excelHandlerEPEAT(link):
     try:
@@ -204,29 +274,32 @@ def getProductDetails(productPages, label=label):
             for index, row in names.iterrows():
                 category = page[0]
                 product_details_list.append([category, row['Manufacturer'] + " " + row['Product Name']])
+    #this removes excess comma's which may be in the product details and might messs with reading the csv later
+    for s in product_details_list:s[1].replace(",","") 
+
     return product_details_list
 
 
-##Nordic Swan
-# label="NS"
-# getWebsite(label)
-# NS_Categories=getCategories(label)
-# #print(NS_Categories)
-# NS_Category_Pages = getCategoryPages(NS_Categories, label)
-# #print(NS_Category_Pages)
-# NS_Product_Pages=getProductPages(NS_Category_Pages, label)
-# #print(NS_Product_Pages)
-# NS_Product_Details=getProductDetails(NS_Product_Pages, label)
-# #print(NS_Product_Details)
+#Nordic Swan
+label="NS"
+getWebsite(label)
+NS_Categories=getCategories(label)
+#print(NS_Categories)
+NS_Category_Pages = getCategoryPages(NS_Categories, label)
+#print(NS_Category_Pages)
+NS_Product_Pages=getProductPages(NS_Category_Pages, label)
+#print(NS_Product_Pages)
+NS_Product_Details=getProductDetails(NS_Product_Pages, label)
+#print(NS_Product_Details)
 
-# ##Write Nordic Swan products to csv file
-# df = pd.DataFrame(NS_Product_Details)
-# df.columns = ['Category', 'Product']
-# df['Label'] = "Nordic Swan"
-# # print(df.head(5))
-# # print(os.getcwd())
+##Write Nordic Swan products to csv file
+df = pd.DataFrame(NS_Product_Details)
+df.columns = ['Category', 'Product']
+df['Label'] = "Nordic Swan"
+# print(df.head(5))
+# print(os.getcwd())
 
-# df.to_csv(file_path+"/product_database.csv", index=False, encoding="utf-8")
+df.to_csv(file_path+"/product_database.csv", index=False, encoding="utf-8")
 
 # ##Blue Angel
 # label ="BA"
@@ -266,23 +339,25 @@ def getProductDetails(productPages, label=label):
 
 ## EPEAT
 
-label ="EPEAT"
-getWebsite(label)
-EPEAT_Categories=getCategories(label)
-print(EPEAT_Categories)
-EPEAT_Category_Pages = getCategoryPages(EPEAT_Categories, label)
-print(EPEAT_Category_Pages)
-EPEAT_Product_Pages=getProductPages(EPEAT_Category_Pages, label)
-print(EPEAT_Product_Pages)
-EPEAT_Product_Details=getProductDetails(EPEAT_Product_Pages, label)
-print(EPEAT_Product_Details)
+# label ="EPEAT"
+# getWebsite(label)
+# EPEAT_Categories=getCategories(label)
+# print(EPEAT_Categories)
+# EPEAT_Category_Pages = getCategoryPages(EPEAT_Categories, label)
+# print(EPEAT_Category_Pages)
+# EPEAT_Product_Pages=getProductPages(EPEAT_Category_Pages, label)
+# print(EPEAT_Product_Pages)
+# EPEAT_Product_Details=getProductDetails(EPEAT_Product_Pages, label)
+# print(EPEAT_Product_Details)
 
-# # ##Write TCO products to csv file
-df = pd.DataFrame(EPEAT_Product_Details)
-df.columns = ['Category', 'Product']
-df['Label'] = "EPEAT"
-df.to_csv(file_path+"/product_database.csv", mode='a', header= False, index=False, encoding="utf-8")
+# # # ##Write TCO products to csv file
+# df = pd.DataFrame(EPEAT_Product_Details)
+# df.columns = ['Category', 'Product']
+# df['Label'] = "EPEAT"
+# df.to_csv(file_path+"/product_database.csv", mode='a', header= False, index=False, encoding="utf-8")
 
+cleanCategories()
 
-print("finished executing")
 driver.close()
+print("finished executing")
+
